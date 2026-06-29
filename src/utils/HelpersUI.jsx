@@ -72,10 +72,12 @@ HelpersUI.TableSearchInput = ({ value, onChange }) => (
     </div>
 )
 
-HelpersUI.TbodyEmpty = () => (
+HelpersUI.TbodyEmpty = ({ message }) => (
     <tbody>
         <tr>
-            <td colSpan={100} className="text-center text-muted py-4">Sin registros</td>
+            <td colSpan={100} className="text-center text-muted py-4">
+                {message}
+            </td>
         </tr>
     </tbody>
 )

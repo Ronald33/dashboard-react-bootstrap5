@@ -1,3 +1,4 @@
+import './config/config.js';
 import './config/yupConfig.js';
 
 import React from 'react'

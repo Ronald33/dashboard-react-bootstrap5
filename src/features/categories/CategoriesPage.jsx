@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react'
+import { useDispatch, useSelector } from 'react-redux'
 
 import useConfirm from '@/lib/useConfirm/useConfirm';
 
@@ -10,19 +11,17 @@ import CategoriesForm from './components/CategoriesForm';
 
 import HelpersUI from '@/utils/HelpersUI';
 
-/* =======================
-   Datos estáticos
-   (reemplazar por fetch a la API)
-======================= */
-const datosIniciales = 
-[
-    { id: 1, nombre: 'Electrónica' },
-    { id: 2, nombre: 'Ropa' },
-    { id: 3, nombre: 'Alimentos' },
-    { id: 4, nombre: 'Hogar' },
-    { id: 5, nombre: 'Deportes' },
-    { id: 6, nombre: 'Juguetes' },
-];
+import
+{
+    fetchCategories,
+    fetchCategoryById,
+    createCategory,
+    updateCategory,
+    deleteCategory,
+    unsetCategoryItem,
+} from './slices/categoriesSlice'
+
+const ERROR_TARGET = 'form_category'
 
 /* =======================
    Component
@@ -30,77 +29,92 @@ const datosIniciales =
 const CategoriesPage = () =>
 {
     const confirm = useConfirm();
+    const dispatch = useDispatch();
 
-    // Estado de datos
-    const [datos, setDatos] = useState(datosIniciales);
+    const { list: categories, item: category, loading } = useSelector((state) => state.categories);
+
+    // Carga inicial de datos
+    useEffect(() => 
+    {
+        dispatch(fetchCategories());
+    }, [])
 
     // Estado del formulario
     const [formOpen, setFormOpen] = useState(false);
-    const [seleccionado, setSeleccionado] = useState(null);
 
     /* =======================
-       Acciones de la página
-       Se puede pasar al PageTitle o al header de la tabla
+       Acciones del header
     ======================= */
-    const getAcciones = () => 
-    [
+    const getAcciones = () => [
         {
-            label: 'Nueva categoría',
-            icon: 'bi-plus-lg',
-            onClick: handleAbrirAgregar,
+            label:   'Nueva category',
+            icon:    'bi-plus-lg',
+            onClick: handleAbrirFormAgregar,
+        },
+        {
+            label:   'Refrescar',
+            icon:    'bi-arrow-clockwise',
+            onClick: () => dispatch(fetchCategories()),
+        },
+        {
+            label:   'Refrescar sin loader',
+            icon:    'bi-arrow-clockwise',
+            onClick: () => dispatch(fetchCategories({ config: { showLoading: false } })),
         },
     ]
 
     /* =======================
        Handlers
     ======================= */
-    const handleAbrirAgregar = () => 
+    const handleAbrirFormAgregar = () => 
     {
-        setSeleccionado(null);
-        setFormOpen(true);
+        dispatch(unsetCategoryItem())
+        setFormOpen(true)
     }
 
-    const handleAbrirEditar = (item) =>
+    const handleAbrirFormEditar = async (item) => 
     {
-        setSeleccionado(item);
-        setFormOpen(true);
+        await dispatch(fetchCategoryById({id:item.id}));
+        setFormOpen(true)
     }
 
-    const handleCerrarForm = () =>
+    const handleCerrarForm = () => 
     {
-        setSeleccionado(null);
-        setFormOpen(false);
+        setFormOpen(false)
     }
 
-    const handleGuardar = (formData) => 
+    const handleGuardar = async (formData) => 
     {
-        if(seleccionado)
-        {
-            setDatos(datos.map((d) =>
-                d.id === seleccionado.id ? { ...d, nombre: formData.nombre } : d
-            ));
-            HelpersUI.toast.success('Categoría actualizada correctamente');
-        }
-        else
-        {
-            setDatos([...datos, { id: Date.now(), nombre: formData.nombre }]);
-            HelpersUI.toast.success('Categoría creada correctamente');
-        }
+        const config = { errorTarget: ERROR_TARGET }
         
-        handleCerrarForm();
+        const response = await dispatch(category ? updateCategory({ id: category.id, data: formData, config }) : createCategory({ data: formData, config }))
+        
+        if(response.payload.success)
+        {
+            dispatch(fetchCategories())
+            handleCerrarForm()
+            HelpersUI.toast.success('Category guardada correctamente')
+        }
     }
 
     const handleEliminar = async (item) => 
     {
         const confirmed = await confirm({
             title: '¿Eliminar categoría?',
-            message: `¿Estás seguro que deseas eliminar "${item.nombre}"? Esta acción no se puede deshacer.`,
+            message: `¿Estás seguro que deseas eliminar "${item.nombre}"?`,
         });
         
         if(!confirmed) { return; }
-
-        setDatos(datos.filter((d) => d.id !== item.id));
-        HelpersUI.toast.success('Categoría eliminada correctamente');
+        
+        const result = await dispatch(deleteCategory({ id: item.id }))
+        const response = result.payload;
+        
+        if(response.success) {
+            dispatch(fetchCategories())
+            HelpersUI.toast.success('Category eliminada correctamente')
+        } else {
+            HelpersUI.toast.error('No se pudo eliminar la category')
+        }
     }
 
     /* =======================
@@ -112,14 +126,14 @@ const CategoriesPage = () =>
                 Categorías
             </PageTitle>
             <PageBody>
-                <CategoriesTable data={datos}
-                    onEditar={handleAbrirEditar}
+                <CategoriesTable data={categories} loading={loading['fetchAll']}
+                    onEditar={handleAbrirFormEditar}
                     onEliminar={handleEliminar}
                     getAcciones={getAcciones}
                 />
             </PageBody>
 
-            <CategoriesForm open={formOpen} seleccionado={seleccionado}
+            <CategoriesForm open={formOpen} category={category} label={ERROR_TARGET}
                 onClose={handleCerrarForm}
                 onSubmit={handleGuardar}
             />

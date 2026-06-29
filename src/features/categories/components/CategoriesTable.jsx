@@ -15,16 +15,13 @@ import TablePagination from '@/components/TablePagination';
 /* =======================
    Subcomponents
 ======================= */
-const TableBody = ({ table, onEditar, onEliminar }) => 
+const TableBody = ({ table, loading, onEditar, onEliminar }) => 
 {
+    if(loading) { return <HelpersUI.TbodyEmpty message="Cargando..." />; }
+
     const rows = table.getRowModel().rows;
 
-    if(rows.length === 0) { return <HelpersUI.TbodyEmpty />; }
-    
-    const columnClasses = {
-        id: 'td-id',
-        acciones: 'td-acciones-2',
-    };
+    if(rows.length === 0) { return <HelpersUI.TbodyEmpty message="Sin registros" />; }
 
     const getCellContent = (cell) => 
     {
@@ -52,7 +49,7 @@ const TableBody = ({ table, onEditar, onEliminar }) =>
             {rows.map((row) => (
                 <tr key={row.id}>
                     {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className={columnClasses[cell.column.id] || ''}>
+                        <td key={cell.id} className={cell.column.columnDef.meta?.className || ''}>
                             {getCellContent(cell)}
                         </td>
                     ))}
@@ -65,16 +62,16 @@ const TableBody = ({ table, onEditar, onEliminar }) =>
 /* =======================
    Component
 ======================= */
-const CategoriesTable = ({ data = [], onEditar, onEliminar, getAcciones }) => 
+const CategoriesTable = ({ data = [], loading, onEditar, onEliminar, getAcciones }) => 
 {
     const [globalFilter, setGlobalFilter] = useState('');
     const [sorting, setSorting] = useState([{ id: 'id', desc: true }]);
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
 
     const columns = useMemo(() => [
-        { accessorKey: 'id', header: 'ID' },
+        { accessorKey: 'id', header: 'ID', meta: { className: 'td-id' } },
         { accessorKey: 'nombre', header: 'NOMBRE' },
-        { id: 'acciones', header: '', enableSorting: false },
+        { id: 'acciones', header: '', enableSorting: false, meta: { className: 'td-acciones-2' } },
     ], []);
 
     const table = useReactTable({
@@ -97,7 +94,7 @@ const CategoriesTable = ({ data = [], onEditar, onEliminar, getAcciones }) =>
                 <div className="table-responsive">
                     <table className="table table-hover table-striped table-bordered mb-0 my-table">
                         <HelpersUI.TableHeader table={table} getAcciones={getAcciones} />
-                        <TableBody table={table} onEditar={onEditar} onEliminar={onEliminar} />
+                        <TableBody table={table} loading={loading} onEditar={onEditar} onEliminar={onEliminar} />
                     </table>
                 </div>
             </div>

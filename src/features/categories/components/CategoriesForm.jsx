@@ -3,6 +3,8 @@ import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
 import { Modal } from 'react-bootstrap';
+import ErrorMessage from '@/lib/ErrorMessage';
+import FormError from '@/lib/FormError';
 
 /* =======================
    Validation
@@ -15,33 +17,33 @@ const schema = yup.object(
 /* =======================
    Fields
 ======================= */
-const CategoryFields = ({ register, errors }) =>
+const CategoryFields = ({ register, errors, label }) =>
 {
     return (
-        <div className="mb-3">
-            <label className="form-label">
-                Nombre <span className="text-danger">*</span>
-            </label>
-            <input
-                {...register('nombre')}
-                type="text"
-                className={`form-control ${errors.nombre ? 'is-invalid' : ''}`}
-                placeholder="Nombre de la categoría"
-            />
-            {
-                errors.nombre &&
-                (
-                    <div className="invalid-feedback">{errors.nombre.message}</div>
-                )
-            }
-        </div>
+        <>
+            <div className="mb-3">
+                <label className="form-label">
+                    Nombre <span className="text-danger">*</span>
+                </label>
+                <input
+                    {...register('nombre')}
+                    type="text"
+                    className={`form-control ${errors.nombre ? 'is-invalid' : ''}`}
+                    placeholder="Nombre de la categoría"
+                />
+                <ErrorMessage errors={errors} name="nombre" />
+            </div>
+            <div className="mt-3">
+                <FormError name={label} />
+            </div>
+        </>
     );
 };
 
 /* =======================
    Component
 ======================= */
-const CategoriesForm = ({ open, onClose, onSubmit, seleccionado }) => 
+const CategoriesForm = ({ open, onClose, onSubmit, category, label }) => 
 {
     const {
         register,
@@ -58,19 +60,19 @@ const CategoriesForm = ({ open, onClose, onSubmit, seleccionado }) =>
     {
         if(open)
         {
-            reset(seleccionado ? { nombre: seleccionado.nombre } : { nombre: '' });
+            reset(category ? { nombre: category.nombre } : { nombre: '' });
         }
-    }, [open, seleccionado]);
+    }, [open, category]);
 
     return (
         <Modal show={open} onHide={onClose} centered>
             <Modal.Header closeButton>
                 <Modal.Title>
-                    {seleccionado ? 'Editar categoría' : 'Nueva categoría'}
+                    {category ? 'Editar categoría' : 'Nueva categoría'}
                 </Modal.Title>
             </Modal.Header>
             <Modal.Body>
-                <CategoryFields register={register} errors={errors} />
+                <CategoryFields register={register} errors={errors} label={label} />
             </Modal.Body>
             <Modal.Footer>
                 <button className="btn btn-secondary" onClick={onClose}>

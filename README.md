@@ -1,23 +1,73 @@
-# Dashboard — React + Bootstrap 5
+# Dashboard React + Bootstrap 5
 
-Dashboard minimalista hecho desde cero con React + Bootstrap 5. Sin plantillas, sin extras innecesarios.
-
----
-
-## Stack
-
-- **React 19**
-- **React Bootstrap 5** — componentes React para elementos interactivos
-- **React Router 7** — manejo de rutas
-- **Bootstrap Icons** — íconos
-- **Vite** — bundler y servidor de desarrollo
-- **TanStack Table** — tablas con sorting, filtering y paginación
-- **React Hook Form + Yup + @hookform/resolvers** — formularios y validación
-- **Sonner** — notificaciones toast
+> **Rama: `feature/api-integration`**  
+> Extiende `master` convirtiendo el módulo de Categorías de datos estáticos a una API REST real, e introduce toda la infraestructura necesaria para que el resto de módulos puedan seguir el mismo patrón.
 
 ---
 
-## Cómo arrancar
+## Qué cambió respecto a `master`
+
+En `master`, el CRUD de Categorías funcionaba con datos en memoria (`useState` local, sin llamadas HTTP). Esta rama reemplaza ese enfoque con:
+
+- Una instancia de **Axios** centralizada con variables de entorno
+- **Redux Toolkit** para el estado global y llamadas asíncronas
+- Un conjunto de **librerías internas** (`lib/`) que gestionan loading, errores HTTP y errores de formulario de forma automática
+- Una **convención de respuesta** uniforme (`{ success, data }`) para todas las operaciones
+
+Los archivos de estilos, layout, routing y componentes base de `master` no se tocaron.
+
+---
+
+## Archivos modificados
+
+| Archivo | Qué cambió |
+|---|---|
+| `src/main.jsx` | Importa `config/config.js` antes que todo lo demás para registrar interceptores |
+| `src/App.jsx` | Agrega `<Provider store={store}>` y `<GlobalLoader />` |
+| `src/features/categories/CategoriesPage.jsx` | Reemplaza estado local + datos estáticos por despacho de thunks Redux |
+| `src/features/categories/components/CategoriesForm.jsx` | Integra `<ErrorMessage>` y `<FormError>` para errores de validación y errores 400 de la API |
+| `src/features/categories/components/CategoriesTable.jsx` | Recibe `loading` como prop para mostrar estado de carga |
+| `src/utils/HelpersUI.jsx` | Agrega `HelpersUI.TbodyEmpty` con mensaje de "Cargando..." |
+| `package.json` | Agrega `axios`, `@reduxjs/toolkit` y `react-redux` |
+| `.gitignore` | Excluye archivos `.env.*` |
+
+## Archivos nuevos
+
+| Archivo / Carpeta | Qué hace |
+|---|---|
+| `src/app/store.js` | Configura el store de Redux con el reducer de categorías |
+| `src/config/config.js` | Registra interceptores y librerías al inicio de la app |
+| `src/services/api.js` | Instancia de Axios con `baseURL` y `timeout` desde `.env` |
+| `src/utils/Helpers.js` | `createAppThunk` — wrapper de `createAsyncThunk` con convención `{ success, data }` |
+| `src/features/categories/services/categoryService.js` | Operaciones CRUD contra la API REST |
+| `src/features/categories/slices/categoriesSlice.js` | Estado, thunks y reducers de categorías |
+| `src/components/MyErrorMessage.jsx` | Implementación visual de `ErrorMessage` |
+| `src/components/MyFormError.jsx` | Implementación visual de `FormError` |
+| `src/components/MyLoader.jsx` | Implementación visual de `GlobalLoader` |
+| `src/lib/ErrorMessage/` | Lib: error de campo en formularios (react-hook-form) |
+| `src/lib/FormError/` | Lib: errores 400 de la API mostrados en el formulario |
+| `src/lib/GlobalLoader/` | Lib: loader global vinculado automáticamente a Axios |
+| `src/lib/httpErrorHandler/` | Lib: manejo centralizado de errores HTTP |
+
+---
+
+## Variables de entorno
+
+Crea un archivo `.env.local` en la raíz del proyecto:
+
+```env
+VITE_API_BASE_URL=http://localhost:8000/api
+VITE_API_TIMEOUT=5000
+```
+
+| Variable | Descripción |
+|---|---|
+| `VITE_API_BASE_URL` | URL base de la API REST |
+| `VITE_API_TIMEOUT` | Tiempo máximo de espera en ms (por defecto `5000`) |
+
+---
+
+## Instalación y arranque
 
 ```bash
 npm install
@@ -26,560 +76,232 @@ npm run dev
 
 ---
 
-## Convención de imports
+## Cómo funciona la integración con la API
 
-Siempre usa el alias `@` para rutas absolutas, nunca rutas relativas:
+### 1. Instancia de Axios (`src/services/api.js`)
 
-```jsx
-// Correcto
-import PageTitle from '@/components/PageTitle'
-import HelpersUI from '@/utils/HelpersUI'
+Axios se configura una sola vez con `baseURL` y `timeout` tomados de las variables de entorno. Esta instancia es la que consumen todos los servicios y sobre la que se registran los interceptores.
 
-// Nunca
-import PageTitle from '../../components/PageTitle'
+### 2. Punto de arranque (`src/config/config.js`)
+
+Se importa al inicio de `main.jsx`, antes que React y los estilos. Registra tres cosas sobre la instancia de Axios:
+
+- **GlobalLoader** — muestra/oculta el loader automáticamente en cada petición
+- **HttpErrorHandler** — captura errores HTTP y dispara un toast genérico (excepto 400, que se delega a FormError)
+- **FormError** — intercepta respuestas 400 y las envía al formulario correcto mediante `errorTarget`
+
+### 3. Convención de respuesta: `{ success, data }`
+
+Todos los thunks devuelven siempre un objeto con esta forma, sin importar si la operación fue exitosa o no:
+
+```js
+// Éxito
+{ success: true,  data: <payload de la API> }
+
+// Error
+{ success: false, data: <error.response.data o null> }
 ```
 
----
+Esto permite guards simples y legibles en los handlers sin necesidad de try/catch:
 
-## Estructura del proyecto
+```js
+const response = await dispatch(createCategory({ data: formData, config }));
 
-```
-src/
-├── app/                        ← configuración global de Redux
-│   └── store.js
-├── assets/                     ← imágenes, fuentes, íconos estáticos
-├── components/                 ← componentes compartidos entre features
-│   ├── PageBody.jsx
-│   ├── PageTitle.jsx
-│   ├── TablePagination.jsx
-│   └── input-persona/          ← componentes complejos tienen carpeta propia
-│       ├── InputPersona.jsx
-│       ├── hooks/
-│       ├── services/
-│       └── index.js
-├── config/                     ← configuración de librerías externas
-│   └── yupConfig.js
-├── features/                   ← una carpeta por entidad o funcionalidad
-│   ├── categories/
-│   │   ├── components/
-│   │   │   ├── CategoriesForm.jsx
-│   │   │   └── CategoriesTable.jsx
-│   │   └── CategoriesPage.jsx
-│   ├── dashboard/
-│   │   └── Dashboard.jsx
-│   ├── example/
-│   │   └── Example.jsx         ← plantilla vacía para nuevas features
-│   └── styles/                 ← guía visual de componentes UI
-│       ├── buttons/
-│       ├── forms/
-│       ├── interactive/
-│       ├── others/
-│       ├── tables/
-│       └── typography/
-├── hooks/                      ← custom hooks genéricos reutilizables
-├── layouts/                    ← esqueleto visual de la app
-│   ├── components/
-│   │   ├── Header.jsx
-│   │   └── Sidebar.jsx
-│   └── Layout.jsx
-├── lib/                        ← plugins propios configurables
-│   └── useConfirm/
-│       ├── ConfirmModal.jsx
-│       ├── ConfirmProvider.jsx
-│       ├── useConfirm.js
-│       └── index.js
-├── services/                   ← instancia base de axios con interceptors
-│   └── api.js
-├── utils/                      ← funciones puras y helpers
-│   └── HelpersUI.jsx
-├── _nav.jsx                    ← ítems del menú lateral
-├── routes.jsx                  ← rutas de la app
-├── App.jsx                     ← raíz con providers globales
-└── main.jsx                    ← entry point
-```
-
-### `app/`
-
-Configuración global de Redux. Contiene el `store.js` que ensambla todos los
-reducers importándolos desde cada feature. Sigue la convención oficial de Redux Toolkit.
-
-### `assets/`
-
-Archivos estáticos que no cambian: imágenes, fuentes, íconos.
-
-### `components/`
-
-Componentes reutilizables compartidos entre múltiples features.
-Los componentes simples van sueltos directamente en la carpeta.
-Los componentes complejos con múltiples archivos internos tienen su propia subcarpeta.
-
-> Regla: un solo archivo → suelto en `components/` · múltiples archivos → carpeta propia
-
-### `config/`
-
-Configuración de librerías externas. Se importa una sola vez en `main.jsx`
-y afecta toda la app. Ejemplo: mensajes globales de validación de Yup.
-
-### `features/`
-
-El corazón de la app. Cada entidad o funcionalidad tiene su propia carpeta
-con todo lo que necesita adentro. Si algo solo lo usa una feature, vive adentro.
-Si dos features lo necesitan, sube a la carpeta raíz que corresponda.
-
-Subcarpetas disponibles por feature:
-
-| Subcarpeta | Contenido |
-|---|---|
-| `components/` | Componentes exclusivos de esa feature |
-| `hooks/` | Hooks con lógica de negocio de esa feature |
-| `services/` | Llamadas a la API de esa feature |
-| `slices/` | Estado Redux de esa feature |
-| `schemas/` | Esquemas de validación Yup de esa feature |
-| `XxxPage.jsx` | Punto de entrada que ensambla todo |
-
-### `hooks/`
-
-Custom hooks genéricos sin lógica de negocio. No mencionan ninguna entidad
-del proyecto. Cualquier feature puede usarlos como base.
-
-### `layouts/` vs `components/`
-
-`layouts/` es el esqueleto visual de la app: Header, Sidebar y el Layout
-que los ensambla. Están presentes en todas las páginas y no desaparecen al navegar.
-
-`components/` son piezas de contenido reutilizables que viven dentro del esqueleto
-pero desaparecen al cambiar de página.
-
-> Pregunta clave: ¿desaparecería si cambio de página? Sí → `components/` · No → `layouts/`
-
-`layouts/components/` contiene las piezas del esqueleto (Header, Sidebar)
-que no tienen sentido fuera del layout.
-
-### `lib/`
-
-Plugins propios configurables y reutilizables. Tienen lógica interna propia
-y están diseñados para funcionar en cualquier proyecto sin modificarlos.
-Si lo podrías publicar en npm sin cambiar nada, va aquí.
-
-### `services/`
-
-Instancia base de axios con interceptors globales: autenticación, manejo de errores,
-loader global. Los servicios de cada feature importan esta instancia y la usan.
-
-### `utils/`
-
-Funciones puras y helpers sin React. No usan hooks, no renderizan nada,
-o si renderizan son helpers visuales genéricos como `HelpersUI`.
-
----
-
-## Cómo agregar una página nueva
-
-Son siempre 3 pasos. Ejemplo: agregar "Clientes".
-
-### Paso 1 — Crear la feature
-
-Crea `src/features/clientes/ClientesPage.jsx` usando `src/features/example/Example.jsx` como base:
-
-```jsx
-import PageTitle from '@/components/PageTitle'
-import PageBody  from '@/components/PageBody'
-
-const ClientesPage = () => {
-    return (
-        <>
-            <PageTitle>Clientes</PageTitle>
-            <PageBody>
-                {/* Tu contenido acá */}
-            </PageBody>
-        </>
-    )
+if (response.payload.success) {
+    dispatch(fetchCategories());
+    handleCerrarForm();
+    HelpersUI.toast.success('Category guardada correctamente');
 }
-
-export default ClientesPage
+// Si success === false, el error ya fue manejado por FormError o HttpErrorHandler
 ```
 
-### Paso 2 — Agregar la ruta en `routes.jsx`
+### 4. Thunks con `Helpers.api.createAppThunk`
 
-```jsx
-{
-    path: '/clientes',
-    element: React.lazy(() => import('@/features/clientes/ClientesPage')),
-},
+Wrapper sobre `createAsyncThunk` que normaliza el flujo para toda la app:
+
+```js
+// categoriesSlice.js
+export const createCategory = Helpers.api.createAppThunk(
+    'categories/create',
+    ({ data, config }) => CategoryService.create({ data, config })
+);
 ```
 
-### Paso 3 — Agregar el ítem en `_nav.jsx`
+Internamente extrae las opciones de `config`, llama al servicio, y siempre resuelve con `{ success, data }` en lugar de rechazar el thunk.
 
-```jsx
-{
-    title: 'Clientes',
-    icon: 'bi-people',
-    to: '/clientes',
-},
+### 5. Opciones de `config` por llamada
+
+Al hacer un dispatch se puede pasar `config` para controlar el comportamiento de esa petición específica:
+
+| Opción | Por defecto | Descripción |
+|---|---|---|
+| `showLoading` | `true` | Muestra o suprime el loader global |
+| `errorTarget` | `null` | Nombre del `<FormError>` que recibirá los errores 400 |
+| `disableErrorHandler` | `false` | Suprime el handler de errores HTTP para esa llamada |
+
+```js
+// Refrescar sin mostrar loader
+dispatch(fetchCategories({ config: { showLoading: false } }));
+
+// Enviar errores 400 al formulario "form_category"
+dispatch(createCategory({ data, config: { errorTarget: 'form_category' } }));
 ```
-
-Los íconos son de Bootstrap Icons: https://icons.getbootstrap.com
 
 ---
 
-## Cómo agregar un submenú
+## Librerías internas (`src/lib/`)
 
-En `_nav.jsx` agrega un ítem con `children`:
+Cada librería es independiente, tiene su propio `README.md` y expone una API estática para configuración. El componente visual de cada una es intercambiable.
+
+### ErrorMessage
+
+Muestra el mensaje de error de un campo individual (integrado con react-hook-form).
 
 ```jsx
-{
-    title: 'Reportes',
-    icon: 'bi-bar-chart',
-    children: [
-        { title: 'Ventas',   icon: 'bi-graph-up', to: '/reportes/ventas' },
-        { title: 'Usuarios', icon: 'bi-people',   to: '/reportes/usuarios' },
-    ],
-},
+// Registrar el componente visual una vez (en config.js)
+ErrorMessage.setComponent(MyErrorMessage);
+
+// Usar en el formulario
+<ErrorMessage errors={errors} name="nombre" />
 ```
 
-El Sidebar lo detecta automáticamente, lo muestra como menú desplegable
-y lo abre solo si la ruta activa pertenece al grupo.
+### FormError
+
+Captura respuestas 400 de la API y las muestra en el formulario que corresponde, identificado por `name`. Se limpia automáticamente al inicio de cada nueva petición.
+
+```jsx
+// Registrar una vez (en config.js)
+FormError.registerApi(api);
+FormError.setComponent(MyFormError);
+
+// Colocar en el formulario
+<FormError name="form_category" />
+
+// Vincular al dispatch
+dispatch(createCategory({ data, config: { errorTarget: 'form_category' } }));
+```
+
+### GlobalLoader
+
+Muestra un loader mientras hay peticiones activas. Contabiliza las peticiones en vuelo y se oculta solo cuando todas terminan.
+
+```jsx
+// Registrar una vez (en config.js)
+GlobalLoader.registerApi(api);
+GlobalLoader.setLoader(MyLoader);
+
+// Colocar en el árbol de componentes (en App.jsx)
+<GlobalLoader />
+
+// Suprimir por petición
+dispatch(fetchCategories({ config: { showLoading: false } }));
+```
+
+### HttpErrorHandler
+
+Ejecuta una función callback ante errores HTTP (cualquier status que Axios considere error). Los errores 400 con `errorTarget` configurado los gestiona FormError, no este handler.
+
+```js
+// Registrar una vez (en config.js)
+HttpErrorHandler.registerApi(api);
+HttpErrorHandler.setTrigger((error) => {
+    const status = error.response?.status ?? error.status;
+    if (status === 400) { return; }
+    HelpersUI.toast.error('Ocurrió un error realizando la petición.');
+});
+```
 
 ---
 
-## Cómo hacer un CRUD
-
-La estructura estándar para cualquier CRUD es 3 archivos dentro de la feature:
+## Flujo completo de una operación de escritura
 
 ```
-src/features/mi-entidad/
-├── components/
-│   ├── MiEntidadTable.jsx   ← tabla con TanStack Table
-│   └── MiEntidadForm.jsx    ← modal con React Hook Form + Yup
-└── MiEntidadPage.jsx        ← estado, lógica y handlers
+Usuario hace clic en "Guardar"
+  → handleGuardar despacha createCategory / updateCategory
+    → createAppThunk llama a CategoryService
+      → Axios lanza la petición
+        → GlobalLoader muestra el loader
+        → Si la respuesta es 400:  FormError muestra los errores en el modal
+        → Si hay otro error HTTP:  HttpErrorHandler muestra el toast genérico
+      → El thunk siempre resuelve con { success, data }
+    → El handler evalúa response.payload.success
+      → true:  refresca la lista, cierra el modal, muestra toast de éxito
+      → false: no hace nada adicional (el error ya fue manejado)
 ```
 
-### MiEntidadPage.jsx — patrón base
+---
 
-Maneja el estado, los handlers y ensambla la tabla y el formulario.
+## Cómo usar este patrón en un módulo nuevo
 
-```jsx
-import { useState }     from 'react'
-import useConfirm       from '@/lib/useConfirm/useConfirm'
-import HelpersUI        from '@/utils/HelpersUI'
-import PageTitle        from '@/components/PageTitle'
-import PageBody         from '@/components/PageBody'
-import MiEntidadTable   from './components/MiEntidadTable'
-import MiEntidadForm    from './components/MiEntidadForm'
+Para conectar cualquier otro módulo a la API, seguir la misma estructura de `categories/`:
 
-const MiEntidadPage = () => {
-    const confirm = useConfirm()
+**1. Service** — `src/features/mi-entidad/services/miEntidadService.js`
+```js
+import api from '@/services/api';
+const RESOURCE = '/mi-entidad/';
+const MiEntidadService = {};
 
-    const [datos, setDatos]               = useState([])
-    const [formOpen, setFormOpen]         = useState(false)
-    const [seleccionado, setSeleccionado] = useState(null)
+MiEntidadService.fetch  = async ({ params = {}, config = {} } = {}) =>
+    (await api.get(RESOURCE, { params, ...config })).data;
 
-    const getAcciones = () => [
-        { label: 'Nueva entidad', icon: 'bi-plus-lg', onClick: handleAbrirAgregar },
-    ]
+MiEntidadService.create = async ({ data, config = {} } = {}) =>
+    (await api.post(RESOURCE, data, config)).data;
 
-    const handleAbrirAgregar = () => { setSeleccionado(null); setFormOpen(true) }
-    const handleAbrirEditar  = (item) => { setSeleccionado(item); setFormOpen(true) }
-    const handleCerrarForm   = () => { setSeleccionado(null); setFormOpen(false) }
+// ... getById, update, delete
 
-    const handleGuardar = (formData) => {
-        if (seleccionado) {
-            setDatos(datos.map((d) => d.id === seleccionado.id ? { ...d, ...formData } : d))
-            HelpersUI.toast.success('Actualizado correctamente')
-        } else {
-            setDatos([...datos, { id: Date.now(), ...formData }])
-            HelpersUI.toast.success('Creado correctamente')
-        }
-        handleCerrarForm()
+export default MiEntidadService;
+```
+
+**2. Slice** — `src/features/mi-entidad/slices/miEntidadSlice.js`
+```js
+import { createSlice } from '@reduxjs/toolkit';
+import Helpers from '@/utils/Helpers';
+import MiEntidadService from '../services/miEntidadService';
+
+const SLICE_NAME = 'miEntidad';
+
+export const fetchMiEntidad = Helpers.api.createAppThunk(
+    SLICE_NAME + '/fetchAll',
+    (arg) => MiEntidadService.fetch(arg)
+);
+export const createMiEntidad = Helpers.api.createAppThunk(
+    SLICE_NAME + '/create',
+    ({ data, config }) => MiEntidadService.create({ data, config })
+);
+
+const miEntidadSlice = createSlice({
+    name: SLICE_NAME,
+    initialState: { list: [], item: null, loading: {} },
+    reducers: {
+        unsetItem(state) { state.item = null; }
+    },
+    extraReducers: (builder) => {
+        builder.addMatcher(
+            (action) => action.type.startsWith(SLICE_NAME + '/'),
+            (state, action) => {
+                const [, methodName, status] = action.type.split('/');
+                state.loading[methodName] = (status === 'pending');
+                if (status === 'fulfilled') {
+                    if (methodName === 'fetchAll') { state.list = action.payload?.data ?? action.payload; }
+                    if (methodName === 'fetchById') { state.item = action.payload?.data ?? action.payload; }
+                }
+            }
+        );
     }
+});
 
-    const handleEliminar = async (item) => {
-        const confirmed = await confirm({
-            title:   '¿Eliminar?',
-            message: `¿Estás seguro que deseas eliminar "${item.nombre}"?`,
-        })
-        if (!confirmed) return
-        setDatos(datos.filter((d) => d.id !== item.id))
-        HelpersUI.toast.success('Eliminado correctamente')
-    }
-
-    return (
-        <>
-            <PageTitle actions={HelpersUI.gearDropdown(getAcciones())}>
-                Mi Entidad
-            </PageTitle>
-            <PageBody>
-                <MiEntidadTable
-                    data={datos}
-                    onEditar={handleAbrirEditar}
-                    onEliminar={handleEliminar}
-                    getAcciones={getAcciones}
-                />
-            </PageBody>
-            <MiEntidadForm
-                open={formOpen}
-                onClose={handleCerrarForm}
-                onSubmit={handleGuardar}
-                seleccionado={seleccionado}
-            />
-        </>
-    )
-}
-
-export default MiEntidadPage
+export const { unsetItem } = miEntidadSlice.actions;
+export default miEntidadSlice.reducer;
 ```
 
-### MiEntidadTable.jsx — patrón base
+**3. Registrar en el store** — `src/app/store.js`
+```js
+import miEntidadReducer from '@/features/mi-entidad/slices/miEntidadSlice';
 
-```jsx
-import { useMemo, useState }     from 'react'
-import { useReactTable, getCoreRowModel, getFilteredRowModel,
-         getPaginationRowModel, getSortedRowModel, flexRender } from '@tanstack/react-table'
-import HelpersUI        from '@/utils/HelpersUI'
-import TablePagination  from '@/components/TablePagination'
-
-const TableBody = ({ table, onEditar, onEliminar }) => {
-    const rows = table.getRowModel().rows
-    if (rows.length === 0) return <HelpersUI.TbodyEmpty />
-
-    const getCellContent = (cell) => {
-        if (cell.column.id === 'acciones') {
-            const item = cell.row.original
-            return (
-                <div className="d-flex gap-1">
-                    <button className="btn btn-outline-primary btn-sm" onClick={() => onEditar(item)}>
-                        <i className="bi bi-pencil"></i>
-                    </button>
-                    <button className="btn btn-outline-danger btn-sm" onClick={() => onEliminar(item)}>
-                        <i className="bi bi-trash"></i>
-                    </button>
-                </div>
-            )
-        }
-        return flexRender(cell.column.columnDef.cell, cell.getContext())
-    }
-
-    return (
-        <tbody>
-            {rows.map((row) => (
-                <tr key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id}>{getCellContent(cell)}</td>
-                    ))}
-                </tr>
-            ))}
-        </tbody>
-    )
-}
-
-const MiEntidadTable = ({ data = [], onEditar, onEliminar, getAcciones }) => {
-    const [globalFilter, setGlobalFilter] = useState('')
-    const [sorting, setSorting]           = useState([{ id: 'id', desc: true }])
-    const [pagination, setPagination]     = useState({ pageIndex: 0, pageSize: 10 })
-
-    const columns = useMemo(() => [
-        { accessorKey: 'id',     header: 'ID' },
-        { accessorKey: 'nombre', header: 'NOMBRE' },
-        // Agrega más columnas acá
-        { id: 'acciones', header: '', enableSorting: false },
-    ], [])
-
-    const table = useReactTable({
-        data, columns,
-        state: { globalFilter, sorting, pagination },
-        onGlobalFilterChange: setGlobalFilter,
-        onSortingChange: setSorting,
-        onPaginationChange: setPagination,
-        getCoreRowModel: getCoreRowModel(),
-        getFilteredRowModel: getFilteredRowModel(),
-        getPaginationRowModel: getPaginationRowModel(),
-        getSortedRowModel: getSortedRowModel(),
-    })
-
-    return (
-        <div className="card border-0 shadow-sm">
-            <HelpersUI.TableSearchInput value={globalFilter} onChange={setGlobalFilter} />
-            <div className="card-body p-0">
-                <div className="table-responsive">
-                    <table className="table table-hover table-striped table-bordered mb-0">
-                        <HelpersUI.TableHeader table={table} getAcciones={getAcciones} />
-                        <TableBody table={table} onEditar={onEditar} onEliminar={onEliminar} />
-                    </table>
-                </div>
-            </div>
-            <TablePagination table={table} />
-        </div>
-    )
-}
-
-export default MiEntidadTable
+export const store = configureStore({
+    reducer: {
+        // ... reducers existentes
+        miEntidad: miEntidadReducer,
+    },
+});
 ```
-
-### MiEntidadForm.jsx — patrón base
-
-Los campos del formulario se separan en un subcomponente propio dentro del mismo archivo.
-Esto mantiene el modal limpio y hace los campos fáciles de localizar y modificar.
-
-```jsx
-import { useEffect }    from 'react'
-import { useForm }      from 'react-hook-form'
-import { yupResolver }  from '@hookform/resolvers/yup'
-import * as yup         from 'yup'
-import { Modal }        from 'react-bootstrap'
-
-/* =======================
-   Validation
-======================= */
-const schema = yup.object({
-    nombre: yup.string().required().max(100),
-    // Agrega más campos acá
-})
-
-/* =======================
-   Fields
-======================= */
-const MiEntidadFields = ({ register, errors }) => {
-    return (
-        <div className="mb-3">
-            <label className="form-label">Nombre <span className="text-danger">*</span></label>
-            <input
-                {...register('nombre')}
-                type="text"
-                className={`form-control ${errors.nombre ? 'is-invalid' : ''}`}
-                placeholder="Nombre"
-            />
-            {errors.nombre && <div className="invalid-feedback">{errors.nombre.message}</div>}
-            {/* Agrega más campos acá */}
-        </div>
-    )
-}
-
-/* =======================
-   Component
-======================= */
-const MiEntidadForm = ({ open, onClose, onSubmit, seleccionado }) => {
-    const { register, handleSubmit, reset, formState: { errors, isValid, isDirty } } = useForm({
-        resolver: yupResolver(schema),
-        mode: 'onChange',
-    })
-
-    useEffect(() => {
-        if (open) {
-            reset(seleccionado ? { nombre: seleccionado.nombre } : { nombre: '' })
-        }
-    }, [open, seleccionado])
-
-    return (
-        <Modal show={open} onHide={onClose} centered>
-            <Modal.Header closeButton>
-                <Modal.Title>{seleccionado ? 'Editar' : 'Nuevo'}</Modal.Title>
-            </Modal.Header>
-            <Modal.Body>
-                <MiEntidadFields register={register} errors={errors} />
-            </Modal.Body>
-            <Modal.Footer>
-                <button className="btn btn-secondary" onClick={onClose}>Cancelar</button>
-                <button className="btn btn-primary" onClick={handleSubmit(onSubmit)} disabled={!isValid || !isDirty}>
-                    Guardar
-                </button>
-            </Modal.Footer>
-        </Modal>
-    )
-}
-
-export default MiEntidadForm
-```
-
----
-
-## HelpersUI
-
-Helpers visuales reutilizables disponibles en cualquier componente.
-
-```jsx
-import HelpersUI from '@/utils/HelpersUI'
-
-// Dropdown de engranaje — recibe array de acciones
-HelpersUI.gearDropdown(getAcciones())
-
-// Th con sorting integrado — úsalo en el thead
-<HelpersUI.Th header={header} />
-
-// Input de búsqueda global para tablas
-<HelpersUI.TableSearchInput value={globalFilter} onChange={setGlobalFilter} />
-
-// Thead completo con sorting y dropdown de acciones
-<HelpersUI.TableHeader table={table} getAcciones={getAcciones} />
-
-// Tbody vacío estándar
-<HelpersUI.TbodyEmpty />
-
-// Toasts
-HelpersUI.toast.success('Guardado correctamente')
-HelpersUI.toast.error('Ocurrió un error')
-HelpersUI.toast.warning('Atención')
-HelpersUI.toast.info('Información')
-```
-
-### Cambiar la librería de toasts
-
-Los toasts no están amarrados a Sonner. `HelpersUI.toast` es una capa de abstracción
-definida en `utils/HelpersUI.jsx` que por defecto usa Sonner, pero puede reemplazarse
-por cualquier otra librería (react-toastify, notistack, etc.) tocando un solo lugar:
-
-```jsx
-// utils/HelpersUI.jsx
-HelpersUI.toast = {
-    success: (msg) => toast.success(msg),
-    error:   (msg) => toast.error(msg),
-    warning: (msg) => toast.warning(msg),
-    info:    (msg) => toast.info(msg),
-}
-```
-
-El resto de la app siempre llama a `HelpersUI.toast.success(...)` sin saber
-qué librería hay por debajo. Para migrar, solo cambias la implementación aquí.
-
----
-
-## useConfirm
-
-Diálogo de confirmación que emula el `confirm()` nativo pero con un modal de React Bootstrap.
-Pausa la ejecución con `await` y retorna `true` o `false` según la decisión del usuario.
-
-```jsx
-import useConfirm from '@/lib/useConfirm/useConfirm'
-
-const confirm = useConfirm()
-
-const handleEliminar = async (item) => {
-    const confirmed = await confirm({
-        title:   '¿Eliminar?',
-        message: `¿Seguro que deseas eliminar "${item.nombre}"?`,
-    })
-    if (!confirmed) return
-    // continúa solo si el usuario confirmó
-}
-```
-
-El `ConfirmProvider` ya está configurado en `App.jsx`. Ver `lib/useConfirm/README.md`
-para documentación completa sobre personalización del modal a 3 niveles.
-
----
-
-## Archivos clave
-
-| Archivo | Qué hace |
-|---|---|
-| `_nav.jsx` | Ítems y submenús del sidebar |
-| `routes.jsx` | Conecta URLs con features |
-| `App.jsx` | Raíz con providers globales (ConfirmProvider, BrowserRouter, Toaster) |
-| `main.jsx` | Entry point, importa estilos y configura Yup globalmente |
-| `utils/HelpersUI.jsx` | Helpers visuales reutilizables |
-| `lib/useConfirm/` | Plugin de diálogo de confirmación |
-| `components/PageTitle.jsx` | Título de página con soporte de acciones |
-| `components/PageBody.jsx` | Contenedor estándar de página |
-| `components/TablePagination.jsx` | Paginación reutilizable para tablas |
-| `features/example/Example.jsx` | Plantilla vacía para nuevas features |
-| `features/categories/` | CRUD de ejemplo con datos estáticos |
-| `features/styles/` | Guía visual de componentes UI del proyecto |
