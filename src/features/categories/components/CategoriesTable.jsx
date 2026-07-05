@@ -48,16 +48,52 @@ const TableBody = ({ table, loading, onEditar, onEliminar }) =>
         <tbody>
             {rows.map((row) => (
                 <tr key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className={cell.column.columnDef.meta?.className || ''}>
-                            {getCellContent(cell)}
-                        </td>
-                    ))}
+                    {row.getVisibleCells().map((cell) => {
+                        const tdMeta = cell.column.columnDef.meta?.td;
+                        return (
+                            <td key={cell.id} className={tdMeta?.className || ''} style={tdMeta?.style}>
+                                {getCellContent(cell)}
+                            </td>
+                        );
+                    })}
                 </tr>
             ))}
         </tbody>
     );
 };
+
+/* =======================
+   Meta de columnas
+======================= */
+const idMeta = 
+{
+    td: { className: 'td-id' }
+};
+
+const accionesMeta = 
+{
+    th: { className: 'td-acciones-2' },
+};
+
+// const fieldMeta = 
+// {
+//     th: 
+//     {
+//         className: 'classname', 
+//         style: 
+//         { 
+//             backgroundColor: 'blue'
+//         }
+//     }, 
+//     td:
+//     {
+//         className: 'another-classname', 
+//         style: 
+//         { 
+//             backgroundColor: 'red'
+//         }
+//     }
+// };
 
 /* =======================
    Component
@@ -69,9 +105,9 @@ const CategoriesTable = ({ data = [], loading, onEditar, onEliminar, getAcciones
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
 
     const columns = useMemo(() => [
-        { accessorKey: 'id', header: 'ID', meta: { className: 'td-id' } },
+        { accessorKey: 'id', header: 'ID', meta: idMeta },
         { accessorKey: 'nombre', header: 'NOMBRE' },
-        { id: 'acciones', header: '', enableSorting: false, meta: { className: 'td-acciones-2' } },
+        { id: 'acciones', header: '', enableSorting: false, meta: accionesMeta },
     ], []);
 
     const table = useReactTable({
