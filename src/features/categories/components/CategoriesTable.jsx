@@ -51,16 +51,52 @@ const TableBody = ({ table, onEditar, onEliminar }) =>
         <tbody>
             {rows.map((row) => (
                 <tr key={row.id}>
-                    {row.getVisibleCells().map((cell) => (
-                        <td key={cell.id} className={columnClasses[cell.column.id] || ''}>
-                            {getCellContent(cell)}
-                        </td>
-                    ))}
+                    {row.getVisibleCells().map((cell) => {
+                        const tdMeta = cell.column.columnDef.meta?.td;
+                        return (
+                            <td key={cell.id} className={tdMeta?.className || ''} style={tdMeta?.style}>
+                                {getCellContent(cell)}
+                            </td>
+                        );
+                    })}
                 </tr>
             ))}
         </tbody>
     );
 };
+
+/* =======================
+   Meta de columnas
+======================= */
+const idMeta = 
+{
+    td: { className: 'td-id' }
+};
+
+const accionesMeta = 
+{
+    th: { className: 'td-acciones-2' },
+};
+
+// const fieldMeta = 
+// {
+//     th: 
+//     {
+//         className: 'classname', 
+//         style: 
+//         { 
+//             backgroundColor: 'blue'
+//         }
+//     }, 
+//     td:
+//     {
+//         className: 'another-classname', 
+//         style: 
+//         { 
+//             backgroundColor: 'red'
+//         }
+//     }
+// };
 
 /* =======================
    Component
@@ -72,9 +108,9 @@ const CategoriesTable = ({ data = [], onEditar, onEliminar, getAcciones }) =>
     const [pagination, setPagination] = useState({ pageIndex: 0, pageSize: 5 });
 
     const columns = useMemo(() => [
-        { accessorKey: 'id', header: 'ID' },
+        { accessorKey: 'id', header: 'ID', meta: idMeta },
         { accessorKey: 'nombre', header: 'NOMBRE' },
-        { id: 'acciones', header: '', enableSorting: false },
+        { id: 'acciones', header: '', enableSorting: false, meta: accionesMeta },
     ], []);
 
     const table = useReactTable({

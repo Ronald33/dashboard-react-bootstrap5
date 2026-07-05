@@ -37,22 +37,28 @@ HelpersUI.gearDropdown = (acciones = []) => {
        {children opcionales}
    </HelpersUI.Th>
 ======================= */
-HelpersUI.Th = ({ header, children }) => (
-    <th
-        style={{
-            cursor: header.column.getCanSort() ? 'pointer' : 'default',
-            userSelect: header.column.getCanSort() ? 'none' : 'auto',
-        }}
-        onClick={header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}
-    >
-        <div className="d-flex align-items-center gap-1">
-            {flexRender(header.column.columnDef.header, header.getContext())}
-            {header.column.getIsSorted() === 'asc' && <i className="bi bi-arrow-up small"></i>}
-            {header.column.getIsSorted() === 'desc' && <i className="bi bi-arrow-down small"></i>}
-            {children}
-        </div>
-    </th>
-)
+HelpersUI.Th = ({ header, children }) => 
+{
+    const thMeta = header.column.columnDef.meta?.th;
+    return (
+        <th
+            className={thMeta?.className || ''}
+            style={{
+                cursor: header.column.getCanSort() ? 'pointer' : 'default',
+                userSelect: header.column.getCanSort() ? 'none' : 'auto',
+                ...thMeta?.style,
+            }}
+            onClick={header.column.getCanSort() ? header.column.getToggleSortingHandler() : undefined}
+        >
+            <div className="d-flex align-items-center gap-1">
+                {flexRender(header.column.columnDef.header, header.getContext())}
+                {header.column.getIsSorted() === 'asc' && <i className="bi bi-arrow-up small"></i>}
+                {header.column.getIsSorted() === 'desc' && <i className="bi bi-arrow-down small"></i>}
+                {children}
+            </div>
+        </th>
+    );
+};
 
 /* =======================
    TableSearchInput
