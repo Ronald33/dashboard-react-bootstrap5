@@ -78,22 +78,27 @@ const CategoriesPage = () =>
         setFormOpen(true)
     }
 
-    const handleCerrarForm = () => 
-    {
-        setFormOpen(false)
-    }
+    const handleCerrarForm = () => { setFormOpen(false); }
 
     const handleGuardar = async (formData) => 
     {
+        const data = 
+        {
+            ...formData, 
+            // fecha: formData.fecha === "" ? null : formData.fecha, 
+            // persona: formData.persona.id ? formData.persona.id : null
+        };
+
         const config = { errorTarget: ERROR_TARGET }
-        
-        const response = await dispatch(category ? updateCategory({ id: category.id, data: formData, config }) : createCategory({ data: formData, config }))
+        const action = category ? updateCategory({ id: category.id, data, config }) : createCategory({ data, config });
+        const response = await dispatch(action)
         
         if(response.payload.success)
         {
-            dispatch(fetchCategories())
-            handleCerrarForm()
-            HelpersUI.toast.success('Category guardada correctamente')
+            dispatch(fetchCategories());
+            handleCerrarForm();
+            HelpersUI.toast.success('Category guardada correctamente');
+            // HelpersUI.toast.success('{{EtiquetaSingular}} guardada correctamente');
         }
     }
 
@@ -103,18 +108,24 @@ const CategoriesPage = () =>
             title: '¿Eliminar categoría?',
             message: `¿Estás seguro que deseas eliminar "${item.nombre}"?`,
         });
+
+        /*const confirmed = await confirm({
+            title: '¿Eliminar {{EtiquetaSingular}}?',
+            message: `¿Estás seguro que deseas eliminar el "${item.nombre}"?`,
+        });*/
         
         if(!confirmed) { return; }
         
         const result = await dispatch(deleteCategory({ id: item.id }))
         const response = result.payload;
         
-        if(response.success) {
+        if(response.success)
+        {
             dispatch(fetchCategories())
-            HelpersUI.toast.success('Category eliminada correctamente')
-        } else {
-            HelpersUI.toast.error('No se pudo eliminar la category')
+            HelpersUI.toast.success('Category eliminada correctamente');
+            // HelpersUI.toast.success('{{EtiquetaSingular}} eliminada correctamente');
         }
+        else { HelpersUI.toast.error('No se pudo eliminar la category'); }
     }
 
     /* =======================
@@ -133,7 +144,7 @@ const CategoriesPage = () =>
                 />
             </PageBody>
 
-            <CategoriesForm open={formOpen} category={category} label={ERROR_TARGET}  key={formOpen ? (category?.id ?? 'nuevo') : 'cerrado'}
+            <CategoriesForm open={formOpen} category={category} label={ERROR_TARGET} key={formOpen ? (category?.id ?? 'nuevo') : 'cerrado'}
                 onClose={handleCerrarForm}
                 onSubmit={handleGuardar}
             />
