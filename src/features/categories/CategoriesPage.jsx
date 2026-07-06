@@ -37,7 +37,7 @@ const CategoriesPage = () =>
     useEffect(() => 
     {
         dispatch(fetchCategories());
-    }, [])
+    }, [dispatch])
 
     // Estado del formulario
     const [formOpen, setFormOpen] = useState(false);
@@ -133,7 +133,7 @@ const CategoriesPage = () =>
                 />
             </PageBody>
 
-            <CategoriesForm open={formOpen} category={category} label={ERROR_TARGET}
+            <CategoriesForm open={formOpen} category={category} label={ERROR_TARGET}  key={formOpen ? (category?.id ?? 'nuevo') : 'cerrado'}
                 onClose={handleCerrarForm}
                 onSubmit={handleGuardar}
             />

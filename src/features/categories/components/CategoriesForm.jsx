@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { yupResolver } from '@hookform/resolvers/yup';
 import * as yup from 'yup';
@@ -45,24 +44,33 @@ const CategoryFields = ({ register, errors, label }) =>
 ======================= */
 const CategoriesForm = ({ open, onClose, onSubmit, category, label }) => 
 {
+    const defaultValues = category
+    ? {
+        nombre: category.nombre,
+    }
+    : {
+        nombre: '',
+    };
+
     const {
         register,
         handleSubmit,
-        reset,
         formState: { errors, isValid, isDirty },
     } = useForm({
         resolver: yupResolver(schema),
         mode: 'onChange',
+        // shouldUnregister: true, // al ocultar un campo, se elimina del form state
+        defaultValues
     });
 
-    // Carga valores al abrir
-    useEffect(() => 
+    const submitHandler = handleSubmit((data) =>
     {
-        if(open)
-        {
-            reset(category ? { nombre: category.nombre } : { nombre: '' });
-        }
-    }, [open, category]);
+        const payload = { ...data };
+
+        // delete payload.attribute;
+
+        onSubmit(payload);
+    });
 
     return (
         <Modal show={open} onHide={onClose} centered>
@@ -79,7 +87,7 @@ const CategoriesForm = ({ open, onClose, onSubmit, category, label }) =>
                     Cancelar
                 </button>
                 <button className="btn btn-primary" disabled={!isValid || !isDirty}
-                    onClick={handleSubmit(onSubmit)}
+                    onClick={submitHandler}
                 >
                     Guardar
                 </button>
